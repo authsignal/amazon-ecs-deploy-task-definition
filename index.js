@@ -30,7 +30,10 @@ async function updateEcsService(ecs, clusterName, service, taskDefArn, waitForSe
     taskDefinition: taskDefArn,
     forceNewDeployment: forceNewDeployment
   }).promise();
-  core.info(`Deployment started. Watch this deployment's progress in the Amazon ECS console: https://console.aws.amazon.com/ecs/home?region=${aws.config.region}#/clusters/${clusterName}/services/${service}/events`);
+
+  const consoleHostname = aws.config.region.startsWith('cn') ? 'console.amazonaws.cn' : 'console.aws.amazon.com';
+
+  core.info(`Deployment started. Watch this deployment's progress in the Amazon ECS console: https://${consoleHostname}/ecs/home?region=${aws.config.region}#/clusters/${clusterName}/services/${service}/events`);
 
   // Wait for service stability
   if (waitForService && waitForService.toLowerCase() === 'true') {
@@ -306,10 +309,10 @@ async function run() {
         throw new Error(`Service is ${serviceResponse.status}`);
       }
 
-      if (!serviceResponse.deploymentController) {
+      if (!serviceResponse.deploymentController || !serviceResponse.deploymentController.type || serviceResponse.deploymentController.type === 'ECS') {
         // Service uses the 'ECS' deployment controller, so we can call UpdateService
         await updateEcsService(ecs, clusterName, service, taskDefArn, waitForService, waitForMinutes, forceNewDeployment);
-      } else if (serviceResponse.deploymentController.type == 'CODE_DEPLOY') {
+      } else if (serviceResponse.deploymentController.type === 'CODE_DEPLOY') {
         // Service uses CodeDeploy, so we should start a CodeDeploy deployment
         await createCodeDeployDeployment(codedeploy, clusterName, service, taskDefArn, waitForService, waitForMinutes);
       } else {
